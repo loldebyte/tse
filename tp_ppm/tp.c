@@ -12,9 +12,18 @@
 
 #define MAX_SIZE 1000000
 
+struct ppm_header {
+    unsigned char format[2];
+    unsigned char width;
+    unsigned char heigth;
+    unsigned char RBG;
+};
+
 bool is_correct_type(FILE *, int32_t *, int32_t *);
 bool has_acceptable_size(char * image);
 void print_string_char_by_char(char *);
+bool load_ppm(FILE *, struct ppm_header *);
+void print_ppm_header(struct ppm_header *);
 
 void print_string_char_by_char(char * string) {
     int32_t i=0;
@@ -23,6 +32,23 @@ void print_string_char_by_char(char * string) {
     }
 }
 
+void print_ppm_header(struct ppm_header * header) {
+    printf("format : %c%c (code : %d%d)\n"
+    "size : %d %d\n"
+    "rbg size : %d\n", header->format[0], header->format[1], (int32_t) header->format[0], (int32_t) header->format[1], (int32_t) header->width, (int32_t) header->heigth, (int32_t) header->RBG);
+}
+
+bool load_ppm(FILE * image, struct ppm_header * header) {
+    char tmpwidth[100] = "";
+    char tmpheight[100] = "";
+    char tmpRGB[100] = "";
+    fscanf(image, "%c%c %s %s %s", &(header->format[0]), &(header->format[1]), tmpwidth, tmpheight, tmpRGB);
+    header->width = (unsigned char) strtol(tmpwidth, NULL, 10);
+    header->heigth = (unsigned char) strtol(tmpheight, NULL, 10);
+    header->RBG = (unsigned char) strtol(tmpRGB, NULL, 10);
+    print_ppm_header(header);
+    return 1;
+}
 /*
 int32_t get_size(FILE *);
 
@@ -55,6 +81,8 @@ bool is_correct_type(FILE * image, int32_t * x, int32_t * y) {
     }
     else return 0;
 }
+
+
 /*
 fgets(line, 1024, image);
 printf("%s", line);
@@ -75,13 +103,13 @@ bool has_acceptable_size(char * image) {
 
 int32_t main(int argc, char ** argv) {
     FILE * image;
-    int32_t x, y = 0;
+    struct ppm_header image_header = {};
     if (argc != 2) { // if no param is put, exit and print usage specification
         printf("USAGE : %s <file_name>\nThe file must be in the same directory as the executable !\n", argv[1]);
         exit(1);
     }
 
-    image = fopen(argv[1], "rb");  // on ouvre le fichier binaire en mode lecture binaire
+    image = fopen(argv[1], "r");  // on ouvre le fichier en mode lecture
     if (!image) {
         printf("ERROR : FILE NOT FOUND\n");
         exit(1);
@@ -90,7 +118,7 @@ int32_t main(int argc, char ** argv) {
         printf("OPENING FILE : %s\n", argv[1]);
     }
 
-    if (!is_correct_type(image, &x, &y)) {
+    if (!load_ppm(image, &image_header)) {
         printf("ERROR : WRONG FILE FORMAT\n");
         exit(1);
     }
