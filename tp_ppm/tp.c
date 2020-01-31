@@ -15,15 +15,24 @@
 struct ppm_header {
     unsigned char format[2];
     unsigned char width;
-    unsigned char heigth;
+    unsigned char height;
     unsigned char RBG;
 };
 
+typedef struct ppm {
+    uint8_t width;
+    uint8_t height;
+    uint8_t pixels[];
+}ppm;
+
+void fill_pixel_array(FILE * image_file, ppm * pixel_array);
+ppm * pixel_array_init(uint8_t, uint8_t);
 bool is_correct_type(FILE *, int32_t *, int32_t *);
 bool has_acceptable_size(char * image);
 void print_string_char_by_char(char *);
-bool load_ppm(FILE *, struct ppm_header *);
+ppm * load_ppm(FILE *, struct ppm_header *);
 void print_ppm_header(struct ppm_header *);
+void destroy_pixel_array(ppm *);
 
 void print_string_char_by_char(char * string) {
     int32_t i=0;
@@ -35,20 +44,65 @@ void print_string_char_by_char(char * string) {
 void print_ppm_header(struct ppm_header * header) {
     printf("format : %c%c (code : %d%d)\n"
     "size : %d %d\n"
-    "rbg size : %d\n", header->format[0], header->format[1], (int32_t) header->format[0], (int32_t) header->format[1], (int32_t) header->width, (int32_t) header->heigth, (int32_t) header->RBG);
+    "rbg size : %d\n", header->format[0], header->format[1], (int32_t) header->format[0], (int32_t) header->format[1], (int32_t) header->width, (int32_t) header->height, (int32_t) header->RBG);
 }
 
-bool load_ppm(FILE * image, struct ppm_header * header) {
+void destroy_pixel_array(ppm * pixel_array) {
+    free(pixel_array);
+}
+
+ppm * pixel_array_init(uint8_t width, uint8_t height) {
+    ppm * pixels = malloc(sizeof(ppm)+width*height*sizeof(uint8_t)*3);
+    if (!pixels) {
+        printf("ERROR : COULD NOT ALLOCATE SPACE FOR PIXEL ARRAY !\n");
+        exit(EXIT_FAILURE);
+    }
+    pixels->width = width;
+    pixels->height = height;
+    for (uint32_t i=0; i<(uint32_t) width*height*3; i++) {
+        pixels->pixels[i] = 0;
+    }
+    return pixels;
+}
+
+ppm * load_ppm(FILE * image, struct ppm_header * header) {
     char tmpwidth[100] = "";
     char tmpheight[100] = "";
     char tmpRGB[100] = "";
+    ppm * pixel_array;
     fscanf(image, "%c%c %s %s %s", &(header->format[0]), &(header->format[1]), tmpwidth, tmpheight, tmpRGB);
+    if (header->format[0] != 'P') {
+        printf("ERROR : WRONG FILE FORMAT !");
+        exit(EXIT_FAILURE);
+    }
+    if (strtol(tmpwidth, NULL, 10) > 255) {
+        printf("ERROR : WIDTH IS GREATER THAN 255");
+        exit(EXIT_FAILURE);
+    }
+    if (strtol(tmpheight, NULL, 10) > 255) {
+        printf("ERROR : HEIGHT IS GREATER THAN 255");
+        exit(EXIT_FAILURE);
+    }
+    if (strtol(tmpRGB, NULL, 10) > 255) {
+        printf("ERROR : RGB IS GREATER THAN 255");
+        exit(EXIT_FAILURE);
+    }
     header->width = (unsigned char) strtol(tmpwidth, NULL, 10);
-    header->heigth = (unsigned char) strtol(tmpheight, NULL, 10);
+    header->height = (unsigned char) strtol(tmpheight, NULL, 10);
     header->RBG = (unsigned char) strtol(tmpRGB, NULL, 10);
     print_ppm_header(header);
-    return 1;
+    pixel_array = pixel_array_init(header->width, header->height);
+    for (uint32_t i=0; i < (uint32_t) pixel_array->width*pixel_array->height; i++) {
+        fread(pixel_array->pixels+i, sizeof(uint8_t), 1, image);
+        fseek(image, 1, SEEK_CUR);
+        fread(pixel_array->pixels+i+1, sizeof(uint8_t), 1, image);
+        fseek(image, 1, SEEK_CUR);
+        fread(pixel_array->pixels+i+2, sizeof(uint8_t), 1, image);
+        fseek(image, 1, SEEK_CUR);
+    }
+    return pixel_array;
 }
+
 /*
 int32_t get_size(FILE *);
 
@@ -103,6 +157,7 @@ bool has_acceptable_size(char * image) {
 
 int32_t main(int argc, char ** argv) {
     FILE * image;
+    ppm * pixel_array;
     struct ppm_header image_header = {};
     if (argc != 2) { // if no param is put, exit and print usage specification
         printf("USAGE : %s <file_name>\nThe file must be in the same directory as the executable !\n", argv[1]);
@@ -118,19 +173,14 @@ int32_t main(int argc, char ** argv) {
         printf("OPENING FILE : %s\n", argv[1]);
     }
 
-    if (!load_ppm(image, &image_header)) {
-        printf("ERROR : WRONG FILE FORMAT\n");
-        exit(1);
-    }
-    else {
-        printf("FILE HAS VALID FORMAT\n");
-    }
-
+    pixel_array = load_ppm(image, &image_header);
+    destroy_pixel_array(pixel_array);
+/*
     if (!has_acceptable_size(argv[1])) {
         printf("FILE IS TOO LARGE !\n");
     }
     else {
         printf("FILE HAS VALID SIZE\n");
     }
-
+*/
 }
