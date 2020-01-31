@@ -68,4 +68,9 @@ différents algos de scheduling :
 note : l'os aussi est sujet au scheduling, puisque sur les machines modernes, il n'y a pas de proc dédié à l'OS !
 
 NOTE : stdbool.h pour type bool !!!
+
+poll => lecture asynchrone
+epoll en unix
+cf myges pour code
+
 */
